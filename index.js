@@ -310,14 +310,6 @@ const install = async () => {
   } else {
     window.dirHandle = window.baseHandle;
   }
-  logToProgressLog("Cleaning old mods/packs");
-  ["mods", "resourcepacks", "config"].forEach(async (name) => {
-    try {
-      await window.dirHandle.removeEntry(name, { recursive: true, force: true });
-    } catch (e) {
-      console.error(e);
-    }
-  });
   const modBase = document.querySelector("#vanillaRadio").checked
     ? "skyclient/mods/"
     : "mods/";
@@ -351,8 +343,8 @@ const install = async () => {
     })
     .map((pack) => ({ url: pack.downloadLink, name: pack.downloadAs }));
   // Download and install the mods
-  for (const mod of modList) {
-    logToProgressLog(`Downloading ${mod.name}`);
+  const modTasks = modList.map((mod) => {
+    logToProgressLog(`Downloading **${mod.name}**`);
     const modFile = await downloadFile(mod.url, mod.name);
     await writeFile(modBase + mod.name, modFile);
     if (mod.extras) {
@@ -365,13 +357,14 @@ const install = async () => {
         await writeFile(configBase + path, fileContent);
       }
     }
-  }
+  });
   // Download and install the packs
-  for (const pack of packList) {
-    logToProgressLog(`Downloading ${pack.name}`);
+  const packTasks = packList.map((pack) => {
+    logToProgressLog(`Downloading **${pack.name}**`);
     const packFile = await downloadFile(pack.url, pack.name);
     await writeFile(packBase + pack.name, packFile);
-  }
+  });
+  await Promise.all(modTasks);
   // Finish up
   confetti({
     particleCount: 300,
