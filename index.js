@@ -11,23 +11,33 @@ Promise.all([
     return Promise.all([modsResp.json(), packsResp.json()]);
   })
   .then(([mods, packs]) => {
-    const transformer = (item, hosting) => ({
-      name: item.display,
-      id: item.id,
-      description: item.description,
-      icon:
-        "https://raw.githubusercontent.com/nacrt/SkyblockClient-REPO/main/files/icons/" +
-        item.icon,
-      downloadLink: item?.url || hosting + item.file,
-      downloadAs: item.file,
-      bundledItems: item?.packages,
-      bundledConfig: item?.files?.map((file) => ({
-        path: file,
-        hostPath: "mcdir/" + file,
-      })),
-      hide: item?.hidden,
-      enabled: item?.enabled,
-    });
+    const transformer = (item, hosting) => {
+      const guideAction = item?.actions?.find((action) =>
+        (action?.link || action?.document).includes("files/guides")
+      );
+      return {
+        name: item.display,
+        id: item.id,
+        description: item.description,
+        icon:
+          "https://raw.githubusercontent.com/nacrt/SkyblockClient-REPO/main/files/icons/" +
+          item.icon,
+        downloadLink: item?.url || hosting + item.file,
+        downloadAs: item.file,
+        bundledItems: item?.packages,
+        bundledConfig: item?.files?.map((file) => ({
+          path: file,
+          hostPath: "mcdir/" + file,
+        })),
+        hide: item?.hidden,
+        enabled: item?.enabled,
+        guide: (guideAction?.link || guideAction?.document)
+          ?.replace("?raw=true", "")
+          ?.replace("REPO/main", "REPO/blob/main")
+          ?.replace("raw.githubusercontent.com", "github.com")
+          ?.concat("#readme"),
+      };
+    };
     window.listMods = mods.map((item) =>
       transformer(
         item,
@@ -51,6 +61,13 @@ Promise.all([
             type="checkbox" class="checkbox" data-id="${item.id}"
             ${item.enabled ? "checked" : ""}>
           <img class="inline-block max-h-4" src="${item.icon}">
+          ${
+            item.guide
+              ? `<a href="${item.guide}" target="_blank">
+                <img src="assets/info.svg" class="inline-block max-h-4">
+              </a>`
+              : ""
+          }
           <strong>${item.name}</strong> - ${item.description}
         </label>
       `;
