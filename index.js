@@ -21,7 +21,10 @@ Promise.all([
       downloadLink: item?.url || hosting + item.file,
       downloadAs: item.file,
       bundledItems: item?.packages,
-      bundledConfig: item?.files,
+      bundledConfig: item?.files?.map((file) => ({
+        path: file,
+        hostPath: "mcdir/" + file,
+      })),
       hide: item?.hidden,
       enabled: item?.enabled,
     });
@@ -142,7 +145,11 @@ document.querySelector("#installButton").addEventListener("click", () => {
 const logToProgressLog = (message) => {
   const progressElement = document.querySelector("#progressLog");
   progressElement.innerHTML +=
-    "<strong>" + new Date().toLocaleTimeString() + "</strong> - " + message + "\n";
+    "<strong>" +
+    new Date().toLocaleTimeString() +
+    "</strong> - " +
+    message.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>") +
+    "\n";
 };
 const writeFile = async (path, data) => {
   logToProgressLog(`Writing ${path}`);
@@ -163,7 +170,6 @@ const writeFile = async (path, data) => {
         const writableFile = await currentContext.createWritable();
         await writableFile.write(data);
         await writableFile.close();
-        logToProgressLog(`Wrote ${path}`);
         return;
       }
     }
@@ -175,7 +181,89 @@ const writeFile = async (path, data) => {
     );
   }
 };
+const cachedAssets = [
+  "DwarvenAssets v1.1.zip",
+  "Autotip-3.0.1 [1.8-1.12.2].jar",
+  "Dungeon_Rooms-3.3.1.jar",
+  "BehindYouV3-3.0.0.jar",
+  "Hytilities-Reborn-1.4.1.jar",
+  "SBCustomMobTex-1.4.jar",
+  "SimpleToggleSprint-2.2.0.jar",
+  "ActuallyPacketsv0.1.zip",
+  "ctjs-2.0.4-1.8.9.jar",
+  "Blur-MC1.8.9-1.0.4-2.jar",
+  "smooth-scrolling-everywhere-1.2.jar",
+  "ActuallyAssets.v1.8.2.zip",
+  "SkyblockClient-Cosmetics-BETA-7.0.6.jar",
+  "Nick Hider-6.0 (1.8.9).jar",
+  "Levelhead-8.1 (1.8.9).jar",
+  "Hypixel+ 1.8.9.zip",
+  "v13 16x Skyblock Pack.zip",
+  "v13 32x Skyblock Pack.zip",
+  "Keystrokes-8.1.2 (1.8.9).jar",
+  "v2 Dark Skyblock UI.zip",
+  "NotEnoughUpdates-2.0.0.jar",
+  "Optibye-1.0.0-dep.jar",
+  "Apec-1.10.1.jar",
+  "RewardClaim-1.0.4.jar",
+  "SkyblockClient-Updater-1.2.0.jar",
+  "RNBW+ v0.7.0.zip",
+  "Chatting-1.3.1.jar",
+  "Insomnia-1.0-REL.jar",
+  "DamageTint-3.2.0.jar",
+  "Scrollable Tooltips-1.4 (1.8.9).jar",
+  "HSB Texturepack V1.7.zip",
+  "REDACTION-1.2.1.jar",
+  "ActuallyMobsv0.1.zip",
+  "ItemPhysic Lite 1.3.jar",
+  "VanillaHUD-1.1.1.jar",
+  "OptiFine_1.8.9_HD_U_M5.jar",
+  "Synthesis-0.2.0.jar",
+  "AutoGG-4.1.3 (1.8.9).jar",
+  "DUNGEONS_TEXTURE_PACK_V1.2.zip",
+  "CustomMainMenu-MC1.8.9-2.0.jar",
+  "dungeonsguide-3.7.7.jar",
+  "CrashPatch-1.3.4.jar",
+  "Cowlection-1.8.9-0.14.0.jar",
+  "OofMod-4.1.0.jar",
+  "kios-hsb-pack.zip",
+  "Craftify-1.0.0-beta-7.jar",
+  "Dankers_Skyblock_Mod-1.8.7-beta4.jar",
+  "Smoll_Icons.zip",
+  "Hypixel Autocomplete-1.1 (1.8.9).jar",
+  "ParticlesEnhanced-1.2.0.jar",
+  "FurfSky Reborn OV [1.4.2].zip",
+  "Compliment.zip",
+  "SkyblockHud-1.13-beta7.jar",
+  "Sound Subtitles-1.2.2 (1.8.9).jar",
+  "SkyblockAddons-1.7.0-beta.37064-for-MC-1.8.9.jar",
+  "SkyblockOverhaul-Overlay_32x-1.1.5.zip",
+  "SkyMobs.zip",
+  "itlt-1.8.8-9-1.0.1.jar",
+  "ReportPlus-1.0.0.jar",
+  "Block_Overlay_4.0.3.jar",
+  "TNT Time-1.1 (1.8.9).jar",
+  "Compliance-32x-1.8.9.zip",
+  "Popup Events-1.3.2 (1.8.9).jar",
+  "Mob Packet 1.8.9 1.4.zip",
+  "Skytils-1.2.0-pre6.jar",
+  "Resource_Pack_Manager_1.2.jar",
+  "Patcher-1.8.1 (1.8.9).jar",
+  "EvergreenHUD (1.8.9-1.4.0) (DOWNGRADE NOT A BUG).jar",
+  "Worlds and Beyond [16x] - Release 1.5.zip",
+  "xCynis Skyblock Pack - v3.0.zip",
+  "TimeChanger-2.2.1.jar",
+  "1.14 Packport.zip",
+  "Nameless [Alpha 5].zip",
+  "betterchat-1.5.jar",
+  "1.8.9 SkyblockPersonalized 1.6.0.1.jar",
+];
 const downloadFile = async (url, fallbackName) => {
+  if (cachedAssets.includes(fallbackName)) {
+    const response = await fetch("assetcache/" + fallbackName);
+    const data = await response.arrayBuffer();
+    return data;
+  }
   try {
     const response = await fetch(url, {
       headers: { Accept: "application/octet-stream" },
@@ -268,12 +356,13 @@ const install = async () => {
     const modFile = await downloadFile(mod.url, mod.name);
     await writeFile(modBase + mod.name, modFile);
     if (mod.extras) {
-      for (const extra of mod.extras) {
-        const extraPath = extra.replace(/\/.+\//g, "/");
-        const extraFile = await downloadFile(
-          `https://raw.githubusercontent.com/nacrt/SkyblockClient-REPO/main/files/${extraPath}`
+      for (const { path, hostPath } of mod.extras) {
+        console.log(path, hostPath);
+        const fileContent = await downloadFile(
+          "https://raw.githubusercontent.com/nacrt/SkyblockClient-REPO/main/files/" +
+            hostPath
         );
-        await writeFile(configBase + extra, extraFile);
+        await writeFile(configBase + path, fileContent);
       }
     }
   }
