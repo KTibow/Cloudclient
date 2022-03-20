@@ -343,7 +343,7 @@ const install = async () => {
     })
     .map((pack) => ({ url: pack.downloadLink, name: pack.downloadAs }));
   // Download and install the mods
-  const modTasks = modList.map((mod) => {
+  const modTasks = modList.map(async (mod) => {
     logToProgressLog(`Downloading **${mod.name}**`);
     const modFile = await downloadFile(mod.url, mod.name);
     await writeFile(modBase + mod.name, modFile);
@@ -359,7 +359,7 @@ const install = async () => {
     }
   });
   // Download and install the packs
-  const packTasks = packList.map((pack) => {
+  const packTasks = packList.map(async (pack) => {
     logToProgressLog(`Downloading **${pack.name}**`);
     const packFile = await downloadFile(pack.url, pack.name);
     await writeFile(packBase + pack.name, packFile);
